@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Smartphone IMU Tester</title>
+<title>IMU Tester</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -11,22 +11,23 @@ body{
 font-family:sans-serif;
 text-align:center;
 background:#eee;
+margin:0;
 }
 
 .container{
-width:360px;
 margin:auto;
+padding:10px;
 }
 
 .top{
 display:flex;
 justify-content:space-between;
-margin-bottom:20px;
+margin-bottom:10px;
 }
 
 button{
 font-size:18px;
-padding:10px;
+padding:10px 15px;
 }
 
 .timer{
@@ -36,20 +37,24 @@ padding:10px;
 }
 
 table{
-width:100%;
 border-collapse:collapse;
 background:#ddd;
+margin:auto;
 }
 
 td,th{
 border:1px solid #bbb;
-padding:10px;
+padding:8px;
 }
 
 .graph{
 background:#ccc;
-margin-top:20px;
-padding:10px;
+margin-top:15px;
+padding:5px;
+}
+
+canvas{
+background:white;
 }
 
 </style>
@@ -57,7 +62,7 @@ padding:10px;
 
 <body>
 
-<div class="container">
+<div class="container" id="container">
 
 <div class="top">
 
@@ -69,7 +74,7 @@ padding:10px;
 
 </div>
 
-<table>
+<table id="paramTable">
 
 <tr>
 <th></th>
@@ -109,13 +114,36 @@ padding:10px;
 <script>
 
 const duration=600000
+const recordInterval=12000
 
 let state="idle"
 let startTime=0
+let lastRecord=0
 let log=[]
+
+let currentSensor={
+ax:0,ay:0,az:0,
+gx:0,gy:0,gz:0
+}
 
 const button=document.getElementById("mainButton")
 const timer=document.getElementById("timer")
+
+function resizeUI(){
+
+let w=window.innerWidth*0.95
+
+document.getElementById("paramTable").style.width=w+"px"
+
+document.querySelectorAll("canvas").forEach(c=>{
+c.width=w
+c.height=w*0.45
+})
+
+}
+
+resizeUI()
+window.addEventListener("resize",resizeUI)
 
 function format(ms){
 
@@ -139,6 +167,7 @@ await DeviceMotionEvent.requestPermission()
 
 state="recording"
 startTime=Date.now()
+lastRecord=0
 log=[]
 
 button.innerText="リセット"
@@ -147,10 +176,7 @@ button.innerText="リセット"
 
 else if(state==="recording"){
 
-state="idle"
-button.innerText="計測の開始"
-timer.innerText="10:00:00"
-log=[]
+reset()
 
 }
 
@@ -159,6 +185,22 @@ else if(state==="done"){
 downloadCSV()
 
 }
+
+}
+
+function reset(){
+
+state="idle"
+button.innerText="計測の開始"
+timer.innerText="10:00:00"
+
+log=[]
+
+accChart.data.datasets.forEach(d=>d.data=[])
+gyroChart.data.datasets.forEach(d=>d.data=[])
+
+accChart.update()
+gyroChart.update()
 
 }
 
@@ -179,14 +221,17 @@ a.click()
 }
 
 const accChart=new Chart(document.getElementById("accChart"),{
+
 type:"line",
+
 data:{
 datasets:[
-{label:"ax",borderColor:"red",data:[],parsing:false},
-{label:"ay",borderColor:"green",data:[],parsing:false},
-{label:"az",borderColor:"blue",data:[],parsing:false}
+{label:"X",borderColor:"red",data:[],parsing:false},
+{label:"Y",borderColor:"green",data:[],parsing:false},
+{label:"Z",borderColor:"blue",data:[],parsing:false}
 ]
 },
+
 options:{
 animation:false,
 scales:{
@@ -194,17 +239,21 @@ x:{type:"linear",min:0,max:600},
 y:{}
 }
 }
+
 })
 
 const gyroChart=new Chart(document.getElementById("gyroChart"),{
+
 type:"line",
+
 data:{
 datasets:[
-{label:"gx",borderColor:"red",data:[],parsing:false},
-{label:"gy",borderColor:"green",data:[],parsing:false},
-{label:"gz",borderColor:"blue",data:[],parsing:false}
+{label:"X",borderColor:"red",data:[],parsing:false},
+{label:"Y",borderColor:"green",data:[],parsing:false},
+{label:"Z",borderColor:"blue",data:[],parsing:false}
 ]
 },
+
 options:{
 animation:false,
 scales:{
@@ -212,52 +261,62 @@ x:{type:"linear",min:0,max:600},
 y:{}
 }
 }
+
 })
 
 window.addEventListener("devicemotion",(e)=>{
 
-let ax=e.accelerationIncludingGravity.x||0
-let ay=e.accelerationIncludingGravity.y||0
-let az=e.accelerationIncludingGravity.z||0
+currentSensor.ax=e.accelerationIncludingGravity.x||0
+currentSensor.ay=e.accelerationIncludingGravity.y||0
+currentSensor.az=e.accelerationIncludingGravity.z||0
 
-let gx=e.rotationRate.alpha||0
-let gy=e.rotationRate.beta||0
-let gz=e.rotationRate.gamma||0
+currentSensor.gx=e.rotationRate.alpha||0
+currentSensor.gy=e.rotationRate.beta||0
+currentSensor.gz=e.rotationRate.gamma||0
 
-document.getElementById("ax").innerText=ax.toFixed(3)
-document.getElementById("ay").innerText=ay.toFixed(3)
-document.getElementById("az").innerText=az.toFixed(3)
+document.getElementById("ax").innerText=currentSensor.ax.toFixed(3)
+document.getElementById("ay").innerText=currentSensor.ay.toFixed(3)
+document.getElementById("az").innerText=currentSensor.az.toFixed(3)
 
-document.getElementById("gx").innerText=gx.toFixed(3)
-document.getElementById("gy").innerText=gy.toFixed(3)
-document.getElementById("gz").innerText=gz.toFixed(3)
-
-if(state!=="recording") return
-
-let t=(Date.now()-startTime)/1000
-
-log.push({t,ax,ay,az,gx,gy,gz})
-
-accChart.data.datasets[0].data.push({x:t,y:ax})
-accChart.data.datasets[1].data.push({x:t,y:ay})
-accChart.data.datasets[2].data.push({x:t,y:az})
-
-gyroChart.data.datasets[0].data.push({x:t,y:gx})
-gyroChart.data.datasets[1].data.push({x:t,y:gy})
-gyroChart.data.datasets[2].data.push({x:t,y:gz})
-
-accChart.update("none")
-gyroChart.update("none")
+document.getElementById("gx").innerText=currentSensor.gx.toFixed(3)
+document.getElementById("gy").innerText=currentSensor.gy.toFixed(3)
+document.getElementById("gz").innerText=currentSensor.gz.toFixed(3)
 
 })
 
-function updateTimer(){
+function update(){
 
 if(state!=="recording") return
 
 let elapsed=Date.now()-startTime
 
 timer.innerText=format(elapsed)
+
+if(elapsed-lastRecord>recordInterval){
+
+lastRecord=elapsed
+
+let t=elapsed/1000
+
+let d={
+t,
+...currentSensor
+}
+
+log.push(d)
+
+accChart.data.datasets[0].data.push({x:t,y:d.ax})
+accChart.data.datasets[1].data.push({x:t,y:d.ay})
+accChart.data.datasets[2].data.push({x:t,y:d.az})
+
+gyroChart.data.datasets[0].data.push({x:t,y:d.gx})
+gyroChart.data.datasets[1].data.push({x:t,y:d.gy})
+gyroChart.data.datasets[2].data.push({x:t,y:d.gz})
+
+accChart.update()
+gyroChart.update()
+
+}
 
 if(elapsed>=duration){
 
@@ -268,7 +327,7 @@ button.innerText="データダウンロード"
 
 }
 
-setInterval(updateTimer,10)
+setInterval(update,50)
 
 </script>
 
