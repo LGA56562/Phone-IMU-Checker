@@ -2,126 +2,116 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>IMU Tester</title>
+<title>Smartphone IMU Viewer</title>
 
 <style>
 
 body{
 font-family:sans-serif;
-text-align:center;
-background:#eee;
+background:#f0f0f0;
 margin:0;
+padding:10px;
 }
 
 .container{
-padding:10px;
+max-width:500px;
+margin:auto;
 }
 
-.top{
-display:flex;
-justify-content:space-between;
+h2{
+margin-top:25px;
 margin-bottom:10px;
 }
 
-button{
-font-size:18px;
-padding:10px 15px;
-}
-
-.timer{
-font-size:24px;
+.row{
+display:flex;
+align-items:center;
+margin:10px 0;
 background:#ddd;
-padding:10px;
-}
-
-table{
-border-collapse:collapse;
-background:#ddd;
-margin:auto;
-width:95%;
-}
-
-td,th{
-border:1px solid #bbb;
 padding:8px;
+border-radius:6px;
+}
+
+.label{
+width:25px;
+font-weight:bold;
+}
+
+.value{
+width:80px;
+text-align:right;
+margin-right:10px;
+font-family:monospace;
 }
 
 meter{
-width:90%;
-height:25px;
+flex-grow:1;
+height:22px;
 }
 
 </style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-<div class="top">
+<h2>加速度 (m/s²)</h2>
 
-<button id="mainButton">計測の開始</button>
-
-<div class="timer" id="timer">
-10:00:00
-</div>
-
-</div>
-
-<table>
-
-<tr>
-<th></th>
-<th>X</th>
-<th>Y</th>
-<th>Z</th>
-</tr>
-
-<tr>
-<td>加速度 (m/s²)</td>
-
-<td>
-<div id="ax_val">0</div>
+<div class="row">
+<div class="label">X</div>
+<div class="value" id="ax_val">0</div>
 <meter id="ax_meter" min="-20" max="20" value="0"></meter>
-</td>
+</div>
 
-<td>
-<div id="ay_val">0</div>
+<div class="row">
+<div class="label">Y</div>
+<div class="value" id="ay_val">0</div>
 <meter id="ay_meter" min="-20" max="20" value="0"></meter>
-</td>
+</div>
 
-<td>
-<div id="az_val">0</div>
+<div class="row">
+<div class="label">Z</div>
+<div class="value" id="az_val">0</div>
 <meter id="az_meter" min="-20" max="20" value="0"></meter>
-</td>
+</div>
 
-</tr>
+<h2>角速度 (deg/s)</h2>
 
-<tr>
-<td>角速度 (deg/s)</td>
-
-<td>
-<div id="gx_val">0</div>
+<div class="row">
+<div class="label">X</div>
+<div class="value" id="gx_val">0</div>
 <meter id="gx_meter" min="-500" max="500" value="0"></meter>
-</td>
+</div>
 
-<td>
-<div id="gy_val">0</div>
+<div class="row">
+<div class="label">Y</div>
+<div class="value" id="gy_val">0</div>
 <meter id="gy_meter" min="-500" max="500" value="0"></meter>
-</td>
+</div>
 
-<td>
-<div id="gz_val">0</div>
+<div class="row">
+<div class="label">Z</div>
+<div class="value" id="gz_val">0</div>
 <meter id="gz_meter" min="-500" max="500" value="0"></meter>
-</td>
-
-</tr>
-
-</table>
+</div>
 
 </div>
 
 <script>
+
+async function requestPermission(){
+
+if(typeof DeviceMotionEvent.requestPermission==="function"){
+try{
+await DeviceMotionEvent.requestPermission()
+}catch(e){}
+}
+
+}
+
+requestPermission()
 
 window.addEventListener("devicemotion",(e)=>{
 
@@ -133,23 +123,22 @@ let gx=e.rotationRate.alpha||0
 let gy=e.rotationRate.beta||0
 let gz=e.rotationRate.gamma||0
 
-document.getElementById("ax_val").innerText=ax.toFixed(2)
-document.getElementById("ay_val").innerText=ay.toFixed(2)
-document.getElementById("az_val").innerText=az.toFixed(2)
+update("ax",ax)
+update("ay",ay)
+update("az",az)
 
-document.getElementById("gx_val").innerText=gx.toFixed(2)
-document.getElementById("gy_val").innerText=gy.toFixed(2)
-document.getElementById("gz_val").innerText=gz.toFixed(2)
-
-document.getElementById("ax_meter").value=ax
-document.getElementById("ay_meter").value=ay
-document.getElementById("az_meter").value=az
-
-document.getElementById("gx_meter").value=gx
-document.getElementById("gy_meter").value=gy
-document.getElementById("gz_meter").value=gz
+update("gx",gx)
+update("gy",gy)
+update("gz",gz)
 
 })
+
+function update(prefix,val){
+
+document.getElementById(prefix+"_val").innerText=val.toFixed(3)
+document.getElementById(prefix+"_meter").value=val
+
+}
 
 </script>
 
