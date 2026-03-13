@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>IMU Tester</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
@@ -15,7 +14,6 @@ margin:0;
 }
 
 .container{
-margin:auto;
 padding:10px;
 }
 
@@ -40,6 +38,7 @@ table{
 border-collapse:collapse;
 background:#ddd;
 margin:auto;
+width:95%;
 }
 
 td,th{
@@ -47,14 +46,9 @@ border:1px solid #bbb;
 padding:8px;
 }
 
-.graph{
-background:#ccc;
-margin-top:15px;
-padding:5px;
-}
-
-canvas{
-background:white;
+meter{
+width:90%;
+height:25px;
 }
 
 </style>
@@ -62,7 +56,7 @@ background:white;
 
 <body>
 
-<div class="container" id="container">
+<div class="container">
 
 <div class="top">
 
@@ -74,7 +68,7 @@ background:white;
 
 </div>
 
-<table id="paramTable">
+<table>
 
 <tr>
 <th></th>
@@ -85,249 +79,77 @@ background:white;
 
 <tr>
 <td>加速度 (m/s²)</td>
-<td id="ax">0</td>
-<td id="ay">0</td>
-<td id="az">0</td>
+
+<td>
+<div id="ax_val">0</div>
+<meter id="ax_meter" min="-20" max="20" value="0"></meter>
+</td>
+
+<td>
+<div id="ay_val">0</div>
+<meter id="ay_meter" min="-20" max="20" value="0"></meter>
+</td>
+
+<td>
+<div id="az_val">0</div>
+<meter id="az_meter" min="-20" max="20" value="0"></meter>
+</td>
+
 </tr>
 
 <tr>
 <td>角速度 (deg/s)</td>
-<td id="gx">0</td>
-<td id="gy">0</td>
-<td id="gz">0</td>
+
+<td>
+<div id="gx_val">0</div>
+<meter id="gx_meter" min="-500" max="500" value="0"></meter>
+</td>
+
+<td>
+<div id="gy_val">0</div>
+<meter id="gy_meter" min="-500" max="500" value="0"></meter>
+</td>
+
+<td>
+<div id="gz_val">0</div>
+<meter id="gz_meter" min="-500" max="500" value="0"></meter>
+</td>
+
 </tr>
 
 </table>
-
-<div class="graph">
-加速度グラフ（10分）
-<canvas id="accChart"></canvas>
-</div>
-
-<div class="graph">
-角速度グラフ（10分）
-<canvas id="gyroChart"></canvas>
-</div>
 
 </div>
 
 <script>
 
-const duration=600000
-const recordInterval=12000
-
-let state="idle"
-let startTime=0
-let lastRecord=0
-let log=[]
-
-let currentSensor={
-ax:0,ay:0,az:0,
-gx:0,gy:0,gz:0
-}
-
-const button=document.getElementById("mainButton")
-const timer=document.getElementById("timer")
-
-function resizeUI(){
-
-let w=window.innerWidth*0.95
-
-document.getElementById("paramTable").style.width=w+"px"
-
-document.querySelectorAll("canvas").forEach(c=>{
-c.width=w
-c.height=w*0.45
-})
-
-}
-
-resizeUI()
-window.addEventListener("resize",resizeUI)
-
-function format(ms){
-
-let remain=Math.max(0,duration-ms)
-
-let m=Math.floor(remain/60000)
-let s=Math.floor(remain%60000/1000)
-let ms2=Math.floor(remain%1000/10)
-
-return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(ms2).padStart(2,'0')}`
-
-}
-
-button.onclick=async()=>{
-
-if(state==="idle"){
-
-if(typeof DeviceMotionEvent.requestPermission==="function"){
-await DeviceMotionEvent.requestPermission()
-}
-
-state="recording"
-startTime=Date.now()
-lastRecord=0
-log=[]
-
-button.innerText="リセット"
-
-}
-
-else if(state==="recording"){
-
-reset()
-
-}
-
-else if(state==="done"){
-
-downloadCSV()
-
-}
-
-}
-
-function reset(){
-
-state="idle"
-button.innerText="計測の開始"
-timer.innerText="10:00:00"
-
-log=[]
-
-accChart.data.datasets.forEach(d=>d.data=[])
-gyroChart.data.datasets.forEach(d=>d.data=[])
-
-accChart.update()
-gyroChart.update()
-
-}
-
-function downloadCSV(){
-
-let csv="time,ax,ay,az,gx,gy,gz\n"
-
-log.forEach(d=>{
-csv+=`${d.t},${d.ax},${d.ay},${d.az},${d.gx},${d.gy},${d.gz}\n`
-})
-
-let blob=new Blob([csv])
-let a=document.createElement("a")
-a.href=URL.createObjectURL(blob)
-a.download="imu_log.csv"
-a.click()
-
-}
-
-const accChart=new Chart(document.getElementById("accChart"),{
-
-type:"line",
-
-data:{
-datasets:[
-{label:"X",borderColor:"red",data:[],parsing:false},
-{label:"Y",borderColor:"green",data:[],parsing:false},
-{label:"Z",borderColor:"blue",data:[],parsing:false}
-]
-},
-
-options:{
-animation:false,
-scales:{
-x:{type:"linear",min:0,max:600},
-y:{}
-}
-}
-
-})
-
-const gyroChart=new Chart(document.getElementById("gyroChart"),{
-
-type:"line",
-
-data:{
-datasets:[
-{label:"X",borderColor:"red",data:[],parsing:false},
-{label:"Y",borderColor:"green",data:[],parsing:false},
-{label:"Z",borderColor:"blue",data:[],parsing:false}
-]
-},
-
-options:{
-animation:false,
-scales:{
-x:{type:"linear",min:0,max:600},
-y:{}
-}
-}
-
-})
-
 window.addEventListener("devicemotion",(e)=>{
 
-currentSensor.ax=e.accelerationIncludingGravity.x||0
-currentSensor.ay=e.accelerationIncludingGravity.y||0
-currentSensor.az=e.accelerationIncludingGravity.z||0
+let ax=e.accelerationIncludingGravity.x||0
+let ay=e.accelerationIncludingGravity.y||0
+let az=e.accelerationIncludingGravity.z||0
 
-currentSensor.gx=e.rotationRate.alpha||0
-currentSensor.gy=e.rotationRate.beta||0
-currentSensor.gz=e.rotationRate.gamma||0
+let gx=e.rotationRate.alpha||0
+let gy=e.rotationRate.beta||0
+let gz=e.rotationRate.gamma||0
 
-document.getElementById("ax").innerText=currentSensor.ax.toFixed(3)
-document.getElementById("ay").innerText=currentSensor.ay.toFixed(3)
-document.getElementById("az").innerText=currentSensor.az.toFixed(3)
+document.getElementById("ax_val").innerText=ax.toFixed(2)
+document.getElementById("ay_val").innerText=ay.toFixed(2)
+document.getElementById("az_val").innerText=az.toFixed(2)
 
-document.getElementById("gx").innerText=currentSensor.gx.toFixed(3)
-document.getElementById("gy").innerText=currentSensor.gy.toFixed(3)
-document.getElementById("gz").innerText=currentSensor.gz.toFixed(3)
+document.getElementById("gx_val").innerText=gx.toFixed(2)
+document.getElementById("gy_val").innerText=gy.toFixed(2)
+document.getElementById("gz_val").innerText=gz.toFixed(2)
+
+document.getElementById("ax_meter").value=ax
+document.getElementById("ay_meter").value=ay
+document.getElementById("az_meter").value=az
+
+document.getElementById("gx_meter").value=gx
+document.getElementById("gy_meter").value=gy
+document.getElementById("gz_meter").value=gz
 
 })
-
-function update(){
-
-if(state!=="recording") return
-
-let elapsed=Date.now()-startTime
-
-timer.innerText=format(elapsed)
-
-if(elapsed-lastRecord>recordInterval){
-
-lastRecord=elapsed
-
-let t=elapsed/1000
-
-let d={
-t,
-...currentSensor
-}
-
-log.push(d)
-
-accChart.data.datasets[0].data.push({x:t,y:d.ax})
-accChart.data.datasets[1].data.push({x:t,y:d.ay})
-accChart.data.datasets[2].data.push({x:t,y:d.az})
-
-gyroChart.data.datasets[0].data.push({x:t,y:d.gx})
-gyroChart.data.datasets[1].data.push({x:t,y:d.gy})
-gyroChart.data.datasets[2].data.push({x:t,y:d.gz})
-
-accChart.update()
-gyroChart.update()
-
-}
-
-if(elapsed>=duration){
-
-state="done"
-button.innerText="データダウンロード"
-
-}
-
-}
-
-setInterval(update,50)
 
 </script>
 
